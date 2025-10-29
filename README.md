@@ -1,4 +1,5 @@
 # Kubernetes v1.28 on AWS using Kubeadm and Terraform
+### The guide run on Ubuntu VM 
 ### Clone the source
 ```bash
 https://github.com/MeetingTeam/ec2k8s.git
