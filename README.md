@@ -1,7 +1,7 @@
 # Kubernetes v1.28 on AWS using Kubeadm and Terraform
 ### Clone the source
 ```bash
-https://github.com/betterguy2004/ec2k8s
+https://github.com/MeetingTeam/ec2k8s.git
 ```
 
 ### Change permission of .pem
