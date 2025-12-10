@@ -7,6 +7,14 @@ resource "aws_instance" "k8s_master" {
   key_name               = aws_key_pair.k8s.key_name
   iam_instance_profile   = aws_iam_instance_profile.k8s_master_profile.name
 
+  # EBS configuration for master node
+  root_block_device {
+    volume_type           = "gp3"
+    volume_size           = 35
+    delete_on_termination = true
+    encrypted             = false
+  }
+
   tags = {
     Name = "k8s-master"
   }

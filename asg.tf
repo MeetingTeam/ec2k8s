@@ -10,6 +10,17 @@ resource "aws_launch_template" "k8s_worker_lt" {
 
   vpc_security_group_ids = [aws_security_group.k8s_worker.id]
 
+  # EBS configuration for worker nodes
+  block_device_mappings {
+    device_name = "/dev/sda1"
+    ebs {
+      volume_type           = "gp3"
+      volume_size           = 30
+      delete_on_termination = true
+      encrypted             = false
+    }
+  }
+
   user_data = base64encode(templatefile("${path.module}/worker_user_data.sh", {
     ssm_join_param_name = var.ssm_join_param_name
   }))
