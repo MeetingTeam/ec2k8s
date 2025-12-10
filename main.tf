@@ -24,7 +24,7 @@ resource "aws_instance" "k8s_master" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ubuntu/master.sh",
-      "sudo sh /home/ubuntu/master.sh k8s-master"
+      "sudo bash /home/ubuntu/master.sh k8s-master ${var.ssm_join_param_name}"
     ]
   }
   provisioner "local-exec" {
