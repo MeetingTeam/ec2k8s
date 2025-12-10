@@ -138,6 +138,13 @@ until kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.
 done
 echo "Weave network deployed successfully!"
 
+# Install Helm 3
+echo "-------------Installing Helm 3-------------"
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+# Verify helm for both root and ubuntu user environments
+helm version || true
+su - ubuntu -c "helm version" || true
+
 echo "-------------Creating join command and publishing-------------"
 JOIN_CMD=$(kubeadm token create --print-join-command)
 # Save locally for troubleshooting and Ansible fetch
