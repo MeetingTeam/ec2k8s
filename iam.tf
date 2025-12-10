@@ -63,7 +63,7 @@ resource "aws_iam_policy" "k8s_master_ssm_write" {
     Statement = [
       {
         Effect   = "Allow",
-        Action   = ["ssm:PutParameter"],
+        Action   = ["ssm:PutParameter", "ssm:GetParameter"],
         Resource = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_join_param_name}"
       }
     ]

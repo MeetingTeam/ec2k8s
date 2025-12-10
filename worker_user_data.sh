@@ -111,6 +111,25 @@ fi
 # Ensure kubelet is enabled
 systemctl enable kubelet
 
-# Execute join
-bash -c "$JOIN_CMD"
+# Retry kubeadm join for up to ~5 minutes (30 x 10s)
+ATTEMPTS=0
+MAX_ATTEMPTS=30
+SLEEP_SECONDS=10
+while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
+  if bash -lc "$JOIN_CMD"; then
+    echo "kubeadm join succeeded"
+    break
+  fi
+  ATTEMPTS=$((ATTEMPTS+1))
+  echo "kubeadm join failed, retry $ATTEMPTS/$MAX_ATTEMPTS..."
+  sleep $SLEEP_SECONDS
+done
+
+if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
+  echo "kubeadm join failed after retries" >&2
+  exit 1
+fi
+
+# Ensure kubelet running
+systemctl restart kubelet
 
