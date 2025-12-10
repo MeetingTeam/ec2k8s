@@ -147,3 +147,4 @@ chmod +x /home/ubuntu/join-command.sh
 # Publish to SSM Parameter Store so ASG workers can retrieve it
 REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
 aws ssm put-parameter --name "$SSM_PARAM_NAME" --value "$JOIN_CMD" --type "String" --overwrite --region "$REGION"
+ 

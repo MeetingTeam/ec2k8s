@@ -40,9 +40,10 @@ sudo tar Cxzvf /opt/cni/bin cni-plugins-linux-amd64-v1.2.0.tgz
 
 # 7) Install crictl
 CRICTL_VER="v1.28.0"
-wget -q https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VER}/crictl-${CRICTL_VER}-linux-amd64.tar.gz
-sudo tar zxvf crictl-${CRICTL_VER}-linux-amd64.tar.gz -C /usr/local/bin
-rm -f crictl-${CRICTL_VER}-linux-amd64.tar.gz
+wget -q https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VER/crictl-$CRICTL_VER-linux-amd64.tar.gz
+sudo tar zxvf crictl-$CRICTL_VER-linux-amd64.tar.gz -C /usr/local/bin
+rm -f crictl-$CRICTL_VER-linux-amd64.tar.gz
+
 
 cat <<EOF | tee /etc/crictl.yaml
 runtime-endpoint: unix:///run/containerd/containerd.sock
