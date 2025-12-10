@@ -20,13 +20,13 @@ variable "instance_type" {
 
 variable "worker_instance_count" {
   type    = number
-  default = 2
+  default = 0
 }
 
 # Autoscaling configuration for worker nodes
 variable "worker_asg_min_size" {
   type    = number
-  default = 2
+  default = 1
 }
 
 variable "worker_asg_max_size" {
@@ -36,7 +36,7 @@ variable "worker_asg_max_size" {
 
 variable "worker_asg_desired_capacity" {
   type    = number
-  default = 2
+  default = 1
 }
 
 # SSM Parameter Store name to publish the kubeadm join command
