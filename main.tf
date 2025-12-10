@@ -68,7 +68,13 @@ resource "aws_instance" "k8s_worker" {
     inline = [
       "chmod +x /home/ubuntu/worker.sh",
       "sudo sh /home/ubuntu/worker.sh k8s-worker-${count.index}",
-      "sudo sh /home/ubuntu/join-command.sh"
+      "# normalize line endings just in case",
+      "sed -i 's/\r$//' /home/ubuntu/join-command.sh",
+      "chmod +x /home/ubuntu/join-command.sh",
+      "# retry kubeadm join until API server is ready (max ~10 minutes)",
+      "bash -lc 'for i in {1..60}; do sudo bash /home/ubuntu/join-command.sh && exit 0; echo \"join failed, retry $i/60...\"; sleep 10; done; exit 1'",
+      "sudo systemctl enable kubelet",
+      "sudo systemctl restart kubelet"
     ]
   }
 }
