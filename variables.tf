@@ -44,3 +44,32 @@ variable "ssm_join_param_name" {
   type    = string
   default = "/k8s/join-command"
 }
+
+# Mixed Instances Policy for worker ASG
+variable "worker_asg_instance_types" {
+  description = "List of instance types to use for worker ASG (overrides)"
+  type        = list(string)
+  default     = [
+    "t3.medium",
+    "t3.large",
+    "t2.large"
+  ]
+}
+
+variable "worker_asg_on_demand_base_capacity" {
+  description = "Base capacity served by On-Demand before using Spot"
+  type        = number
+  default     = 0
+}
+
+variable "worker_asg_on_demand_percentage_above_base_capacity" {
+  description = "Percent of additional capacity to be On-Demand (0 = all Spot)"
+  type        = number
+  default     = 0
+}
+
+variable "worker_asg_spot_allocation_strategy" {
+  description = "Spot allocation strategy (price-capacity-optimized recommended)"
+  type        = string
+  default     = "price-capacity-optimized"
+}

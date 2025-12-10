@@ -1,9 +1,8 @@
 # Launch Template for worker nodes
 resource "aws_launch_template" "k8s_worker_lt" {
-  name_prefix   = "k8s-worker-lt-"
-  image_id      = var.ami["worker"]
-  instance_type = var.instance_type["worker"]
-  key_name      = aws_key_pair.k8s.key_name
+  name_prefix = "k8s-worker-lt-"
+  image_id    = var.ami["worker"]
+  key_name    = aws_key_pair.k8s.key_name
 
   iam_instance_profile {
     name = aws_iam_instance_profile.k8s_worker_profile.name
@@ -23,7 +22,7 @@ resource "aws_launch_template" "k8s_worker_lt" {
   }
 }
 
-# Auto Scaling Group for worker nodes
+# Auto Scaling Group for worker nodes (Mixed Instances Policy + Spot)
 resource "aws_autoscaling_group" "k8s_workers" {
   name                      = "k8s-workers-asg"
   min_size                  = var.worker_asg_min_size
@@ -33,11 +32,29 @@ resource "aws_autoscaling_group" "k8s_workers" {
   health_check_type         = "EC2"
   vpc_zone_identifier       = [aws_subnet.k8s_private_subnet.id]
   wait_for_capacity_timeout = "10m"
+  capacity_rebalance        = true
   depends_on                = [aws_instance.k8s_master]
 
-  launch_template {
-    id      = aws_launch_template.k8s_worker_lt.id
-    version = "$Latest"
+  mixed_instances_policy {
+    launch_template {
+      launch_template_specification {
+        launch_template_id = aws_launch_template.k8s_worker_lt.id
+        version            = "$Latest"
+      }
+
+      dynamic "override" {
+        for_each = var.worker_asg_instance_types
+        content {
+          instance_type = override.value
+        }
+      }
+    }
+
+    instances_distribution {
+      on_demand_base_capacity                  = var.worker_asg_on_demand_base_capacity
+      on_demand_percentage_above_base_capacity = var.worker_asg_on_demand_percentage_above_base_capacity
+      spot_allocation_strategy                 = var.worker_asg_spot_allocation_strategy
+    }
   }
 
   tag {
@@ -46,5 +63,3 @@ resource "aws_autoscaling_group" "k8s_workers" {
     propagate_at_launch = true
   }
 }
-
-
