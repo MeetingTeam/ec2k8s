@@ -13,7 +13,7 @@ variable "ami" {
 variable "instance_type" {
   type = map(string)
   default = {
-    master = "t2.medium"
+    master = "t3.medium"
     worker = "t2.medium"
   }
 }
