@@ -3,7 +3,9 @@ set -e
 
 # Set hostname
 echo "-------------Setting hostname-------------"
+# Arg1: hostname, Arg2: SSM parameter name for join command (optional)
 hostnamectl set-hostname $1
+SSM_PARAM_NAME=${2:-/k8s/join-command}
 
 # Disable swap
 echo "-------------Disabling swap-------------"
@@ -68,7 +70,7 @@ sysctl -p /etc/sysctl.conf
 
 # Install kubectl, kubelet and kubeadm
 echo "-------------Installing Kubectl, Kubelet and Kubeadm-------------"
-apt-get update && sudo apt-get install -y apt-transport-https curl ca-certificates gpg
+apt-get update && sudo apt-get install -y apt-transport-https curl ca-certificates gpg awscli jq
 
 # Add Kubernetes repository (new method)
 mkdir -p /etc/apt/keyrings
@@ -136,6 +138,12 @@ until kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.
 done
 echo "Weave network deployed successfully!"
 
-echo "-------------Creating file with join command-------------"
-echo `kubeadm token create --print-join-command` > ./join-command.sh
- 
+echo "-------------Creating join command and publishing-------------"
+JOIN_CMD=$(kubeadm token create --print-join-command)
+# Save locally for troubleshooting and Ansible fetch
+echo "$JOIN_CMD" | tee /home/ubuntu/join-command.sh >/dev/null
+chmod +x /home/ubuntu/join-command.sh
+
+# Publish to SSM Parameter Store so ASG workers can retrieve it
+REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
+aws ssm put-parameter --name "$SSM_PARAM_NAME" --value "$JOIN_CMD" --type "String" --overwrite --region "$REGION"

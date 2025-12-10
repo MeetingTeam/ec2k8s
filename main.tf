@@ -5,6 +5,7 @@ resource "aws_instance" "k8s_master" {
   subnet_id              = aws_subnet.k8s_public_subnet.id
   vpc_security_group_ids = [aws_security_group.k8s_master.id]
   key_name               = aws_key_pair.k8s.key_name
+  iam_instance_profile   = aws_iam_instance_profile.k8s_master_profile.name
 
   tags = {
     Name = "k8s-master"
