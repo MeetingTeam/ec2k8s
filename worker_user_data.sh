@@ -3,86 +3,101 @@ set -euo pipefail
 
 # 1) Basic setup
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -y
-apt-get install -y apt-transport-https curl ca-certificates gpg jq awscli
+sudo apt-get update -y
+sudo apt-get install -y apt-transport-https curl ca-certificates gpg jq awscli
 
 # 2) Set hostname (optional: suffix with short-uuid)
 HNAME="k8s-worker-$(head -c8 /proc/sys/kernel/random/uuid)"
-hostnamectl set-hostname "$HNAME"
+sudo hostnamectl set-hostname "$HNAME"
 
 # 3) Disable swap
-swapoff -a || true
-sed -i '/ swap / s/^.*/# &/g' /etc/fstab || true
+echo "Disabling swap..."
+sudo swapoff -a || true
+sudo sed -i.bak '/\bswap\b/ s/^/#/' /etc/fstab || true
 
-# 4) Install containerd
-wget -q https://github.com/containerd/containerd/releases/download/v1.7.4/containerd-1.7.4-linux-amd64.tar.gz
-sudo tar Cxzvf /usr/local containerd-1.7.4-linux-amd64.tar.gz
-wget -q https://raw.githubusercontent.com/containerd/containerd/main/containerd.service
-mkdir -p /usr/local/lib/systemd/system
-mv containerd.service /usr/local/lib/systemd/system/containerd.service
-systemctl daemon-reload
-systemctl enable --now containerd
-
-
-echo "-------------Installing required Kubernetes dependencies-------------"
-apt-get install -y conntrack socat ebtables ethtool ipset
-
-# 5) Install runc
-wget -q https://github.com/opencontainers/runc/releases/download/v1.1.9/runc.amd64
-install -m 755 runc.amd64 /usr/local/sbin/runc
-
-# 6) Install CNI plugins
-wget -q https://github.com/containernetworking/plugins/releases/download/v1.2.0/cni-plugins-linux-amd64-v1.2.0.tgz
-mkdir -p /opt/cni/bin
-sudo tar Cxzvf /opt/cni/bin cni-plugins-linux-amd64-v1.2.0.tgz
-
-# 7) Install crictl
-CRICTL_VER="v1.31.0"
-wget -q https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VER/crictl-$CRICTL_VER-linux-amd64.tar.gz
-sudo tar zxvf crictl-$CRICTL_VER-linux-amd64.tar.gz -C /usr/local/bin
-rm -f crictl-$CRICTL_VER-linux-amd64.tar.gz
-
-
-cat <<EOF | tee /etc/crictl.yaml
-runtime-endpoint: unix:///run/containerd/containerd.sock
-image-endpoint: unix:///run/containerd/containerd.sock
-timeout: 2
-debug: false
-pull-image-on-create: false
-EOF
-
-# 8) Kernel settings
-cat <<EOF | tee /etc/modules-load.d/k8s.conf
+# ---------- Configure prerequisites (kubernetes.io/docs/setup/production-environment/container-runtimes/)
+echo "Configuring kernel modules and sysctl parameters..."
+sudo cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
 overlay
 br_netfilter
 EOF
-modprobe overlay || true
-modprobe br_netfilter || true
 
-cat <<EOF | tee /etc/sysctl.d/k8s.conf
-net.bridge.bridge-nf-call-iptables = 1
+sudo modprobe overlay || true
+sudo modprobe br_netfilter || true
+
+sudo cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-iptables  = 1
 net.bridge.bridge-nf-call-ip6tables = 1
-net.ipv4.ip_forward = 1
+net.ipv4.ip_forward                 = 1
 EOF
-sysctl --system
 
-# 9) Install kubeadm, kubelet, kubectl
-apt-get update -y && apt-get install -y apt-transport-https curl ca-certificates gpg
-mkdir -p /etc/apt/keyrings
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-cat <<EOF | tee /etc/apt/sources.list.d/kubernetes.list
-deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /
-EOF
-apt-get update -y
-apt-get install -y kubelet kubeadm kubectl
-apt-mark hold kubelet kubeadm kubectl
+# Apply sysctl params without reboot
+sudo sysctl --system
+sudo apt-get install -y conntrack-tools
 
-# 10) Fetch join command from SSM and join cluster
+
+# 4) Installation of CRI - CONTAINERD and Docker using Package
+# Reference: https://docs.docker.com/engine/install/ubuntu/
+echo "Installing Docker and Containerd via Package Manager..."
+sudo apt-get remove -y docker docker-engine docker.io containerd runc || true
+sudo apt-get update
+sudo apt-get install -y apt-transport-https ca-certificates curl gnupg
+
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Verify Docker installation
+if sudo docker ps | grep -q 'CONTAINER ID'; then
+  echo "Docker installed successfully!"
+else
+  echo "Docker installation failed"
+  exit 1
+fi
+
+# 5) Edit the Containerd Config file /etc/containerd/config.toml
+# By default this config file contains disabled CRI, so we need to enable it
+echo "Configuring Containerd..."
+sudo mkdir -p /etc/containerd
+sudo containerd config default | sudo tee /etc/containerd/config.toml >/dev/null
+sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+sudo systemctl restart containerd
+
+# 6) Installing kubeadm, kubelet and kubectl
+echo "Installing Kubernetes components (kubeadm, kubelet, kubectl)..."
+sudo apt-get update
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+# Add Kubernetes repository
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+# Install kubelet, kubeadm and kubectl
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+
+echo "Kubernetes components installed successfully"
+
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
+
+# 7) Fetch join command from SSM and join cluster
 # Discover region from IMDS
 REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
 PARAM_NAME="${ssm_join_param_name}"
 
 # Try to retrieve join command from SSM with retries (up to ~10 minutes)
+echo "Retrieving join command from SSM Parameter Store..."
 ATTEMPTS=0
 MAX_ATTEMPTS=60
 SLEEP_SECONDS=10
@@ -107,14 +122,15 @@ if [ -z "$JOIN_CMD" ] || [[ "$JOIN_CMD" != kubeadm* ]]; then
 fi
 
 # Ensure kubelet is enabled
-systemctl enable kubelet
+sudo systemctl enable kubelet
 
-# Retry kubeadm join for up to ~5 minutes (30 x 10s)
+# 8) Retry kubeadm join for up to ~5 minutes (30 x 10s)
+echo "Joining Kubernetes cluster..."
 ATTEMPTS=0
 MAX_ATTEMPTS=30
 SLEEP_SECONDS=10
 while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
-  if bash -lc "$JOIN_CMD"; then
+  if sudo bash -lc "$JOIN_CMD"; then
     echo "kubeadm join succeeded"
     break
   fi
@@ -129,5 +145,6 @@ if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
 fi
 
 # Ensure kubelet running
-systemctl restart kubelet
+sudo systemctl restart kubelet
 
+echo "Worker node initialization complete"
