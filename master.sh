@@ -34,6 +34,7 @@ EOF
 sudo sysctl --system
 sudo apt-get update -y
 sudo apt-get install -y conntrack
+sudo apt-get install -y conntrack-tools
 
 # Verify kernel modules are loaded
 echo "Verifying kernel modules..."

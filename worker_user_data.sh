@@ -35,6 +35,7 @@ EOF
 sudo sysctl --system
 sudo apt-get update -y
 sudo apt-get install -y conntrack
+sudo apt-get install -y conntrack-tools
 
 
 # 4) Installation of CRI - CONTAINERD and Docker using Package
