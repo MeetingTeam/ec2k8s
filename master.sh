@@ -22,6 +22,8 @@ mv containerd.service /usr/local/lib/systemd/system/containerd.service
 systemctl daemon-reload
 systemctl enable --now containerd
 
+echo "-------------Installing required Kubernetes dependencies-------------"
+apt-get install -y conntrack socat ebtables ethtool ipset
 
 
 # Install Runc

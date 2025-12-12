@@ -15,7 +15,6 @@ swapoff -a || true
 sed -i '/ swap / s/^.*/# &/g' /etc/fstab || true
 
 # 4) Install containerd
-cd /tmp
 wget -q https://github.com/containerd/containerd/releases/download/v1.7.4/containerd-1.7.4-linux-amd64.tar.gz
 sudo tar Cxzvf /usr/local containerd-1.7.4-linux-amd64.tar.gz
 wget -q https://raw.githubusercontent.com/containerd/containerd/main/containerd.service
@@ -25,6 +24,8 @@ systemctl daemon-reload
 systemctl enable --now containerd
 
 
+echo "-------------Installing required Kubernetes dependencies-------------"
+apt-get install -y conntrack socat ebtables ethtool ipset
 
 # 5) Install runc
 wget -q https://github.com/opencontainers/runc/releases/download/v1.1.9/runc.amd64
