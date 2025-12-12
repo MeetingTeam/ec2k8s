@@ -33,8 +33,14 @@ EOF
 
 # Apply sysctl params without reboot
 sudo sysctl --system
+# Ensure Universe repo is enabled (conntrack is in universe on some Ubuntu images)
 sudo apt-get update -y
-sudo apt-get install -y conntrack
+sudo apt-get install -y software-properties-common || true
+if ! grep -R "^deb .* universe" /etc/apt/sources.list /etc/apt/sources.list.d/* >/dev/null 2>&1; then
+  sudo add-apt-repository -y universe || true
+fi
+sudo apt-get update -y
+sudo apt-get install -y conntrack || true
 sudo apt-get install -y conntrack-tools
 
 
