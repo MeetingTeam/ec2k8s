@@ -24,12 +24,7 @@ mv containerd.service /usr/local/lib/systemd/system/containerd.service
 systemctl daemon-reload
 systemctl enable --now containerd
 
-# Generate containerd config
-mkdir -p /etc/containerd
-containerd config default | tee /etc/containerd/config.toml >/dev/null
-# Ensure containerd uses systemd cgroups to match kubelet default
-sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-systemctl restart containerd
+
 
 # 5) Install runc
 wget -q https://github.com/opencontainers/runc/releases/download/v1.1.9/runc.amd64

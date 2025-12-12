@@ -22,10 +22,7 @@ mv containerd.service /usr/local/lib/systemd/system/containerd.service
 systemctl daemon-reload
 systemctl enable --now containerd
 
-# Configure containerd to use systemd cgroups
-containerd config default | sudo tee /etc/containerd/config.toml >/dev/null
-sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-systemctl restart containerd
+
 
 # Install Runc
 echo "-------------Installing Runc-------------"
