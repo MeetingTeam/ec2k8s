@@ -33,7 +33,8 @@ EOF
 
 # Apply sysctl params without reboot
 sudo sysctl --system
-sudo apt-get install -y conntrack-tools
+sudo apt-get update -y
+sudo apt-get install -y conntrack
 
 
 # 4) Installation of CRI - CONTAINERD and Docker using Package

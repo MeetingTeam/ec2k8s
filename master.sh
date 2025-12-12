@@ -32,7 +32,8 @@ EOF
 
 # Apply sysctl params without reboot
 sudo sysctl --system
-sudo apt-get install -y conntrack-tools
+sudo apt-get update -y
+sudo apt-get install -y conntrack
 
 # Verify kernel modules are loaded
 echo "Verifying kernel modules..."
