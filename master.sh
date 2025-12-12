@@ -22,6 +22,11 @@ mv containerd.service /usr/local/lib/systemd/system/containerd.service
 systemctl daemon-reload
 systemctl enable --now containerd
 
+# Configure containerd to use systemd cgroups
+containerd config default | sudo tee /etc/containerd/config.toml >/dev/null
+sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+systemctl restart containerd
+
 # Install Runc
 echo "-------------Installing Runc-------------"
 wget https://github.com/opencontainers/runc/releases/download/v1.1.9/runc.amd64
@@ -35,7 +40,7 @@ tar Cxzvf /opt/cni/bin cni-plugins-linux-amd64-v1.2.0.tgz
 
 # Install CRICTL
 echo "-------------Installing CRICTL-------------"
-VERSION="v1.28.0" # check latest version in /releases page
+VERSION="v1.31.0" # check latest version in /releases page
 wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
 tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
 rm -f crictl-$VERSION-linux-amd64.tar.gz
@@ -74,10 +79,10 @@ apt-get update && sudo apt-get install -y apt-transport-https curl ca-certificat
 
 # Add Kubernetes repository (new method)
 mkdir -p /etc/apt/keyrings
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
 cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
-deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /
+deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /
 EOF
 
 apt update -y
@@ -90,7 +95,7 @@ kubeadm version
 echo "-------------Pulling Kueadm Images -------------"
 kubeadm config images pull
 
-echo "-------------Running kubeadm init-------------"
+echo "-------------Running kubeadm init --pod-network-cidr=10.244.0.0/16-------------"
 kubeadm init
 
 echo "-------------Copying Kubeconfig-------------"
@@ -137,6 +142,11 @@ until kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.
   sleep 15
 done
 echo "Weave network deployed successfully!"
+
+# Configure Weave Net to allocate pod IPs from 10.244.0.0/16 to avoid overlap with VPC 10.0.0.0/16
+kubectl -n kube-system set env daemonset/weave-net IPALLOC_RANGE=10.244.0.0/16
+# Wait for weave-net to roll out with the new env var (best-effort)
+kubectl -n kube-system rollout status daemonset/weave-net --timeout=2m || true
 
 # Install Helm 3
 echo "-------------Installing Helm 3-------------"

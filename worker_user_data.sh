@@ -27,6 +27,8 @@ systemctl enable --now containerd
 # Generate containerd config
 mkdir -p /etc/containerd
 containerd config default | tee /etc/containerd/config.toml >/dev/null
+# Ensure containerd uses systemd cgroups to match kubelet default
+sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
 systemctl restart containerd
 
 # 5) Install runc
@@ -39,7 +41,7 @@ mkdir -p /opt/cni/bin
 sudo tar Cxzvf /opt/cni/bin cni-plugins-linux-amd64-v1.2.0.tgz
 
 # 7) Install crictl
-CRICTL_VER="v1.28.0"
+CRICTL_VER="v1.31.0"
 wget -q https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VER/crictl-$CRICTL_VER-linux-amd64.tar.gz
 sudo tar zxvf crictl-$CRICTL_VER-linux-amd64.tar.gz -C /usr/local/bin
 rm -f crictl-$CRICTL_VER-linux-amd64.tar.gz
@@ -71,9 +73,9 @@ sysctl --system
 # 9) Install kubeadm, kubelet, kubectl
 apt-get update -y && apt-get install -y apt-transport-https curl ca-certificates gpg
 mkdir -p /etc/apt/keyrings
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 cat <<EOF | tee /etc/apt/sources.list.d/kubernetes.list
-deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /
+deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /
 EOF
 apt-get update -y
 apt-get install -y kubelet kubeadm kubectl
