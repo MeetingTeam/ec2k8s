@@ -41,7 +41,6 @@ if ! grep -R "^deb .* universe" /etc/apt/sources.list /etc/apt/sources.list.d/* 
 fi
 sudo apt-get update -y
 sudo apt-get install -y conntrack || true
-sudo apt-get install -y conntrack-tools
 
 
 # 4) Installation of CRI - CONTAINERD and Docker using Package
