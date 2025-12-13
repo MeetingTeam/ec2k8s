@@ -166,7 +166,8 @@ sudo tee /etc/systemd/system/kubelet.service.d/20-cloud-provider.conf > /dev/nul
 [Service]
 Environment="KUBELET_EXTRA_ARGS=--cloud-provider=external"
 EOF
-
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
 
 # ---------- Setup kubeconfig for root user
 echo "-------------Setting up kubeconfig for root user-------------"

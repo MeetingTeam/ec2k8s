@@ -97,11 +97,10 @@ echo "Kubernetes components installed successfully"
 sudo systemctl daemon-reload
 sudo systemctl restart kubelet
 # Thêm vào worker_user_data.sh sau khi cài đặt kubelet
-sudo mkdir -p /etc/default
-
-# Tạo file cấu hình kubelet
-sudo tee /etc/default/kubelet > /dev/null <<EOF
-KUBELET_EXTRA_ARGS="--cloud-provider=external"
+sudo mkdir -p /etc/systemd/system/kubelet.service.d/
+sudo tee /etc/systemd/system/kubelet.service.d/20-cloud-provider.conf >/dev/null <<'EOF'
+[Service]
+Environment="KUBELET_EXTRA_ARGS=--cloud-provider=external"
 EOF
 sudo systemctl daemon-reload
 sudo systemctl restart kubelet
