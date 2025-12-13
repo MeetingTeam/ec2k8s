@@ -1,5 +1,6 @@
-- hosts: all
-  name: fetch join token file
+# Fetch join token from master node
+- hosts: master
+  name: fetch join token file from master
   gather_facts: false
   become: yes
   tasks:
@@ -9,3 +10,15 @@
       dest: ./join-command.sh
       flat: yes
       validate_checksum: false
+
+# Configure worker nodes (if needed)
+- hosts: workers
+  name: configure worker nodes
+  gather_facts: false
+  become: yes
+  vars:
+    master_public_ip: "{{ groups['master'][0] }}"
+  tasks:
+  - name: Wait for worker nodes to be ready
+    wait_for_connection:
+      timeout: 300

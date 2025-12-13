@@ -37,7 +37,7 @@ resource "aws_instance" "k8s_master" {
     ]
   }
   provisioner "local-exec" {
-    command = "ansible-playbook -i '${self.public_ip},' playbook.yml"
+    command = "bash generate_inventory.sh ${self.public_ip} && ansible-playbook -i inventory.ini playbook.yml"
   }
 }
 

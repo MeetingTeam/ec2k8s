@@ -113,7 +113,7 @@ sudo kubeadm config images pull
 echo "Running kubeadm init..."
 KUBEADM_ATTEMPTS=0
 MAX_KUBEADM_ATTEMPTS=3
-until sudo kubeadm init --pod-network-cidr=10.32.0.0/16 --apiserver-advertise-address="$USER_IP" --apiserver-cert-extra-sans=$PUBLIC_IP --ignore-preflight-errors=all -y; do
+until sudo kubeadm init --pod-network-cidr=10.32.0.0/16 --apiserver-advertise-address="$USER_IP" --apiserver-cert-extra-sans=$PUBLIC_IP --ignore-preflight-errors=all ; do
   KUBEADM_ATTEMPTS=$((KUBEADM_ATTEMPTS + 1))
   if [ $KUBEADM_ATTEMPTS -ge $MAX_KUBEADM_ATTEMPTS ]; then
     echo "kubeadm init failed after $MAX_KUBEADM_ATTEMPTS attempts"
