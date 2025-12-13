@@ -96,7 +96,15 @@ echo "Kubernetes components installed successfully"
 
 sudo systemctl daemon-reload
 sudo systemctl restart kubelet
+# Thêm vào worker_user_data.sh sau khi cài đặt kubelet
+sudo mkdir -p /etc/default
 
+# Tạo file cấu hình kubelet
+sudo tee /etc/default/kubelet > /dev/null <<EOF
+KUBELET_EXTRA_ARGS="--cloud-provider=aws"
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
 # 7) Fetch join command from SSM and join cluster
 # Discover region from IMDS
 REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
