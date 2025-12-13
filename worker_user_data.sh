@@ -101,7 +101,7 @@ sudo mkdir -p /etc/default
 
 # Tạo file cấu hình kubelet
 sudo tee /etc/default/kubelet > /dev/null <<EOF
-KUBELET_EXTRA_ARGS="--cloud-provider=aws"
+KUBELET_EXTRA_ARGS="--cloud-provider=external"
 EOF
 sudo systemctl daemon-reload
 sudo systemctl restart kubelet

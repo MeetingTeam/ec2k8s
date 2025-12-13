@@ -11,7 +11,6 @@ parameters:
   type: gp3
   iops: "3000"
   throughput: "125"
-  encrypted: "true"
   # fsType: ext4
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
@@ -21,13 +20,12 @@ reclaimPolicy: Delete
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: ebs-gp2-csi
+  name: gp2
   annotations:
     storageclass.kubernetes.io/is-default-class: "false"
 provisioner: ebs.csi.aws.com
 parameters:
   type: gp2
-  encrypted: "true"
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
 reclaimPolicy: Delete
