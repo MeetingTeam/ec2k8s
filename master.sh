@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 # Set hostname
 echo "-------------Setting hostname-------------"
@@ -33,13 +32,7 @@ EOF
 # Apply sysctl params without reboot
 sudo sysctl --system
 
-# Ensure Universe repo is enabled (conntrack is in universe on some Ubuntu images)
-sudo apt-get update -y
-sudo apt-get install -y software-properties-common || true
-if ! grep -R "^deb .* universe" /etc/apt/sources.list /etc/apt/sources.list.d/* >/dev/null 2>&1; then
-  sudo add-apt-repository -y universe || true
-fi
-sudo apt-get update -y
+
 sudo apt-get install -y conntrack || true
 
 # Verify kernel modules are loaded
@@ -80,13 +73,11 @@ else
   exit 1
 fi
 
-# ---------- Edit the Containerd Config file /etc/containerd/config.toml
-# By default this config file contains disabled CRI, so we need to enable it
-echo "-------------Configuring Containerd-------------"
-sudo mkdir -p /etc/containerd
-sudo containerd config default | sudo tee /etc/containerd/config.toml >/dev/null
-sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
-sudo systemctl restart containerd
+if [ -f /etc/containerd/config.toml ]; then
+        sudo chmod 770 -R /etc/containerd
+        sudo containerd config default | sudo tee /etc/containerd/config.toml
+        sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+fi
 
 # ---------- Installing kubeadm, kubelet and kubectl
 echo "-------------Installing Kubernetes components (kubeadm, kubelet, kubectl)-------------"
@@ -113,7 +104,7 @@ echo "-------------Initializing Kubernetes Control Plane-------------"
 # Get the node's IP address
 USER_IP=$(hostname -I | awk '{print $1}')
 echo "Using IP address: $USER_IP"
-
+PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
 # Pull kubeadm images
 echo "Pulling kubeadm images..."
 sudo kubeadm config images pull
@@ -122,7 +113,7 @@ sudo kubeadm config images pull
 echo "Running kubeadm init..."
 KUBEADM_ATTEMPTS=0
 MAX_KUBEADM_ATTEMPTS=3
-until sudo kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address="$USER_IP" --ignore-preflight-errors=all; do
+until sudo kubeadm init --pod-network-cidr=10.32.0.0/16 --apiserver-advertise-address="$USER_IP" --apiserver-cert-extra-sans=$PUBLIC_IP --ignore-preflight-errors=all -y; do
   KUBEADM_ATTEMPTS=$((KUBEADM_ATTEMPTS + 1))
   if [ $KUBEADM_ATTEMPTS -ge $MAX_KUBEADM_ATTEMPTS ]; then
     echo "kubeadm init failed after $MAX_KUBEADM_ATTEMPTS attempts"
@@ -180,10 +171,6 @@ until kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.
 done
 echo "Weave network deployed successfully!"
 
-# Set Weave Net IP range to avoid overlap with VPC (10.0.0.0/16)
-echo "Configuring Weave Net IP allocation range..."
-kubectl -n kube-system set env daemonset/weave-net IPALLOC_RANGE=10.244.0.0/16
-kubectl -n kube-system rollout status daemonset/weave-net --timeout=2m || true
 
 # ---------- Verify cluster status
 echo "-------------Verifying cluster status-------------"

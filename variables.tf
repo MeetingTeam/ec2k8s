@@ -14,7 +14,7 @@ variable "instance_type" {
   type = map(string)
   default = {
     master = "t3.medium"
-    worker = "t2.medium"
+    worker = "t3.medium"
   }
 }
 
