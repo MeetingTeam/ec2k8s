@@ -20,10 +20,10 @@
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                   │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │                    VPC (10.0.0.0/16)                     │   │
+│  │                    VPC (172.16.0.0/16)                     │   │
 │  │                                                            │   │
 │  │  ┌────────────────────────────────────────────────────┐  │   │
-│  │  │         Public Subnet (10.0.1.0/24)               │  │   │
+│  │  │         Public Subnet (172.16.1.0/24)               │  │   │
 │  │  │                                                     │  │   │
 │  │  │  ┌──────────────────────────────────────────────┐  │  │   │
 │  │  │  │  K8s Master Node (t3.medium)                │  │  │   │
@@ -47,7 +47,7 @@
 │  │  └────────────────────────────────────────────────────┘  │   │
 │  │                                                            │   │
 │  │  ┌────────────────────────────────────────────────────┐  │   │
-│  │  │         Private Subnet (10.0.2.0/24)              │  │   │
+│  │  │         Private Subnet (172.16.2.0/24)              │  │   │
 │  │  │                                                     │  │   │
 │  │  │  ┌──────────────────────────────────────────────┐  │  │   │
 │  │  │  │  Worker Node 1 (t3.medium - Spot/On-Demand) │  │  │   │
@@ -92,9 +92,9 @@
 ### 1. **Infrastructure Layer (Terraform)**
 
 #### VPC & Networking (`vpc.tf`)
-- **VPC**: 10.0.0.0/16 CIDR block
-- **Public Subnet**: 10.0.1.0/24 (Master node, NAT gateway)
-- **Private Subnet**: 10.0.2.0/24 (Worker nodes)
+- **VPC**: 172.16.0.0/16 CIDR block
+- **Public Subnet**: 172.16.1.0/24 (Master node, NAT gateway)
+- **Private Subnet**: 172.16.2.0/24 (Worker nodes)
 - **Internet Gateway**: Provides internet connectivity to public subnet
 - **NAT Gateway**: Enables outbound internet access for private subnet
 - **Route Tables**: 
@@ -146,7 +146,7 @@
 #### Master Node (`main.tf`)
 - **Instance Type**: t3.medium (configurable)
 - **AMI**: Ubuntu 22.04 LTS (ami-0a2fc2446ff3412c3)
-- **Subnet**: Public subnet (10.0.1.0/24)
+- **Subnet**: Public subnet (172.16.1.0/24)
 - **Storage**: 35 GB gp3 EBS volume
 - **IAM Profile**: k8s-master-instance-profile
 - **Provisioning**:
@@ -166,7 +166,7 @@
   - Min size: 1
   - Max size: 4
   - Desired capacity: 1
-  - Placement: Private subnet (10.0.2.0/24)
+  - Placement: Private subnet (172.16.2.0/24)
   - Mixed Instances Policy:
     - On-Demand base capacity: 0
     - On-Demand percentage above base: 0 (all Spot)
@@ -205,7 +205,7 @@
 
 **Step 5: Pod Network Setup**
 - Deploy Weave Net v2.8.1 as CNI plugin
-- Configure Weave Net IPALLOC_RANGE: 10.244.0.0/16 (avoids overlap with VPC 10.0.0.0/16)
+- Configure Weave Net IPALLOC_RANGE: 10.244.0.0/16 (avoids overlap with VPC 172.16.0.0/16)
 - Wait for Weave Net DaemonSet rollout
 
 **Step 6: Package Manager & Join Command**
@@ -486,13 +486,13 @@ terraform apply \
 
 2. **Restrict API Server Access**
    ```hcl
-   cidr_blocks = ["YOUR_IP/32", "10.0.0.0/16"]  # Your IP + VPC CIDR
+   cidr_blocks = ["YOUR_IP/32", "172.16.0.0/16"]  # Your IP + VPC CIDR
    ```
 
 3. **Restrict etcd Access**
    ```hcl
    # Only allow from master and worker nodes within VPC
-   cidr_blocks = ["10.0.0.0/16"]
+   cidr_blocks = ["172.16.0.0/16"]
    ```
 
 4. **Enable EBS Encryption**

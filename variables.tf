@@ -52,7 +52,7 @@ variable "worker_asg_instance_types" {
   default     = [
     "t3.medium",
     "t3.large",
-    "t2.large"
+    "c6i.large"
   ]
 }
 
