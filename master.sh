@@ -158,6 +158,8 @@ until sudo kubeadm init --pod-network-cidr=10.32.0.0/16 --apiserver-advertise-ad
   sudo kubeadm reset -f
   sleep 10
 done
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
 # Cấu hình cloud provider cho kubelet trên master
 sudo mkdir -p /etc/systemd/system/kubelet.service.d/
 sudo tee /etc/systemd/system/kubelet.service.d/20-cloud-provider.conf > /dev/null <<EOF
@@ -165,8 +167,7 @@ sudo tee /etc/systemd/system/kubelet.service.d/20-cloud-provider.conf > /dev/nul
 Environment="KUBELET_EXTRA_ARGS=--cloud-provider=external"
 EOF
 
-sudo systemctl daemon-reload
-sudo systemctl restart kubelet
+
 # ---------- Setup kubeconfig for root user
 echo "-------------Setting up kubeconfig for root user-------------"
 sudo mkdir -p /root/.kube
