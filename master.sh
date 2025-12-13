@@ -73,10 +73,37 @@ else
   exit 1
 fi
 
+# ---------- Configure Containerd
+echo "-------------Configuring Containerd-------------"
 if [ -f /etc/containerd/config.toml ]; then
-        sudo chmod 770 -R /etc/containerd
-        sudo containerd config default | sudo tee /etc/containerd/config.toml
-        sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+        sudo rm /etc/containerd/config.toml
+fi
+
+sudo mkdir -p /etc/containerd
+sudo containerd config default | sudo tee /etc/containerd/config.toml
+sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+
+# Restart and enable containerd
+sudo systemctl daemon-reload
+sudo systemctl enable containerd
+sudo systemctl restart containerd
+
+# Verify containerd is running
+echo "Verifying containerd is running..."
+if sudo systemctl is-active --quiet containerd; then
+    echo "Containerd is running successfully!"
+else
+    echo "ERROR: Containerd failed to start"
+    sudo systemctl status containerd
+    exit 1
+fi
+
+# Verify containerd socket
+if [ -S /var/run/containerd/containerd.sock ]; then
+    echo "Containerd socket is available"
+else
+    echo "ERROR: Containerd socket not found"
+    exit 1
 fi
 
 # ---------- Installing kubeadm, kubelet and kubectl
@@ -95,8 +122,8 @@ sudo apt-mark hold kubelet kubeadm kubectl
 
 echo "Installing of Kubernetes components is successful"
 
-sudo systemctl daemon-reload
-sudo systemctl restart kubelet
+# Enable kubelet service (will start after kubeadm init)
+sudo systemctl enable kubelet
 
 # ---------- Master Node (Control-plane) Initialization
 echo "-------------Initializing Kubernetes Control Plane-------------"
@@ -107,22 +134,28 @@ echo "Using IP address: $USER_IP"
 PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
 # Pull kubeadm images
 echo "Pulling kubeadm images..."
-sudo kubeadm config images pull
+if ! sudo kubeadm config images pull; then
+    echo "ERROR: Failed to pull kubeadm images"
+    echo "Checking containerd status..."
+    sudo systemctl status containerd --no-pager
+    exit 1
+fi
 
 # Initialize kubeadm with retry logic
 echo "Running kubeadm init..."
 KUBEADM_ATTEMPTS=0
-MAX_KUBEADM_ATTEMPTS=3
-until sudo kubeadm init --pod-network-cidr=10.32.0.0/16 --apiserver-advertise-address="$USER_IP" --apiserver-cert-extra-sans=$PUBLIC_IP --ignore-preflight-errors=all ; do
+MAX_KUBEADM_ATTEMPTS=2
+until sudo kubeadm init --pod-network-cidr=10.32.0.0/16 --apiserver-advertise-address="$USER_IP" --apiserver-cert-extra-sans=$PUBLIC_IP ; do
   KUBEADM_ATTEMPTS=$((KUBEADM_ATTEMPTS + 1))
   if [ $KUBEADM_ATTEMPTS -ge $MAX_KUBEADM_ATTEMPTS ]; then
-    echo "kubeadm init failed after $MAX_KUBEADM_ATTEMPTS attempts"
+    echo "ERROR: kubeadm init failed after $MAX_KUBEADM_ATTEMPTS attempts"
+    echo "Checking system status..."
+    sudo systemctl status containerd --no-pager
+    sudo systemctl status kubelet --no-pager
     exit 1
   fi
   echo "kubeadm init failed, retrying... (attempt $KUBEADM_ATTEMPTS/$MAX_KUBEADM_ATTEMPTS)"
-  sudo kubeadm reset -f || true
-  sudo systemctl daemon-reload
-  sudo systemctl restart kubelet
+  sudo kubeadm reset -f
   sleep 10
 done
 
