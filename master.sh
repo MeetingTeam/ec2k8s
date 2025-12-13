@@ -189,8 +189,9 @@ echo "-------------Creating join command and publishing to SSM Parameter Store--
 JOIN_CMD=$(sudo kubeadm token create --print-join-command)
 
 # Save locally for troubleshooting and Ansible fetch
-echo "$JOIN_CMD" | tee /home/ubuntu/join-command.sh >/dev/null
-chmod +x /home/ubuntu/join-command.sh
+echo "$JOIN_CMD" | sudo tee /home/ubuntu/join-command.sh >/dev/null
+sudo chmod 644 /home/ubuntu/join-command.sh
+sudo chown ubuntu:ubuntu /home/ubuntu/join-command.sh
 
 # Publish to SSM Parameter Store so ASG workers can retrieve it
 REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)

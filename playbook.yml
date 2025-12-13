@@ -4,6 +4,12 @@
   gather_facts: false
   become: yes
   tasks:
+  - name: Wait for join-command.sh to be created
+    ansible.builtin.wait_for:
+      path: /home/ubuntu/join-command.sh
+      state: present
+      timeout: 600
+    
   - name: fetch join token file
     ansible.builtin.fetch:
       src: /home/ubuntu/join-command.sh

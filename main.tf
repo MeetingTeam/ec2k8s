@@ -30,10 +30,9 @@ resource "aws_instance" "k8s_master" {
     destination = "/home/ubuntu/master.sh"
   }
   provisioner "remote-exec" {
-    on_failure = "continue"
     inline = [
       "chmod +x /home/ubuntu/master.sh",
-      "sudo bash /home/ubuntu/master.sh k8s-master ${var.ssm_join_param_name} || true"
+      "sudo bash /home/ubuntu/master.sh k8s-master ${var.ssm_join_param_name}"
     ]
   }
   provisioner "local-exec" {
