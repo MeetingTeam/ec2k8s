@@ -6,8 +6,8 @@ sudo apt-get update -y
 sudo apt-get install -y apt-transport-https curl ca-certificates gpg jq awscli
 
 # 2) Set hostname (optional: suffix with short-uuid)
-HNAME="k8s-worker-$(head -c8 /proc/sys/kernel/random/uuid)"
-sudo hostnamectl set-hostname "$HNAME"
+sudo hostnamectl set-hostname $(curl -s http://169.254.169.254/latest/meta-data/local-hostname)
+
 
 # 3) Disable swap
 echo "Disabling swap..."
