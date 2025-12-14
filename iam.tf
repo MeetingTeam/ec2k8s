@@ -184,6 +184,12 @@ resource "aws_iam_instance_profile" "k8s_worker_profile" {
   role = aws_iam_role.k8s_worker_role.name
 }
 
+# Attach custom EBS CSI policy to master role as well
+resource "aws_iam_role_policy_attachment" "k8s_master_ebs_csi_attach" {
+  role       = aws_iam_role.k8s_master_role.name
+  policy_arn = aws_iam_policy.ebs_csi_driver_policy.arn
+}
+
 # IAM role for master to write join command to SSM Parameter Store
 resource "aws_iam_role" "k8s_master_role" {
   name               = "k8s-master-role"
