@@ -266,3 +266,47 @@ resource "aws_iam_role_policy_attachment" "k8s_master_ebs_csi_managed" {
   role       = aws_iam_role.k8s_master_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }
+
+# IAM policy for Cloud Controller Manager and Load Balancer Controller
+resource "aws_iam_policy" "k8s_cloud_controller_policy" {
+  name        = "K8sCloudControllerPolicy"
+  description = "Additional permissions for AWS Cloud Controller Manager and Load Balancer Controller"
+  policy      = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "autoscaling:DescribeAutoScalingGroups",
+          "autoscaling:DescribeLaunchConfigurations",
+          "autoscaling:DescribeTags"
+        ],
+        Resource = "*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "iam:CreateServiceLinkedRole"
+        ],
+        Resource = "*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "kms:DescribeKey"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "k8s_worker_cloud_controller" {
+  role       = aws_iam_role.k8s_worker_role.name
+  policy_arn = aws_iam_policy.k8s_cloud_controller_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "k8s_master_cloud_controller" {
+  role       = aws_iam_role.k8s_master_role.name
+  policy_arn = aws_iam_policy.k8s_cloud_controller_policy.arn
+}
