@@ -102,41 +102,46 @@ sudo systemctl restart kubelet
 REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
 PARAM_NAME="${ssm_join_param_name}"
 
-# Try to retrieve join command from SSM with retries (up to ~10 minutes)
-echo "Retrieving join command from SSM Parameter Store..."
+# Try to retrieve join config from SSM with retries (up to ~10 minutes)
+echo "Retrieving kubeadm join configuration from SSM Parameter Store..."
 ATTEMPTS=0
 MAX_ATTEMPTS=60
 SLEEP_SECONDS=10
-JOIN_CMD=""
+JOIN_CONFIG=""
 while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
   set +e
-  JOIN_CMD=$(aws ssm get-parameter --name "$PARAM_NAME" --with-decryption --query Parameter.Value --output text --region "$REGION" 2>/dev/null)
+  JOIN_CONFIG=$(aws ssm get-parameter --name "$PARAM_NAME" --with-decryption --query Parameter.Value --output text --region "$REGION" 2>/dev/null)
   STATUS=$?
   set -e
-  if [ $STATUS -eq 0 ] && [ -n "$JOIN_CMD" ] && [[ "$JOIN_CMD" == kubeadm* ]]; then
-    echo "Obtained join command from SSM."
+  if [ $STATUS -eq 0 ] && [ -n "$JOIN_CONFIG" ] && [[ "$JOIN_CONFIG" == *"apiVersion"* ]]; then
+    echo "Obtained join configuration from SSM."
     break
   fi
   ATTEMPTS=$((ATTEMPTS+1))
-  echo "Waiting for join command in SSM ($ATTEMPTS/$MAX_ATTEMPTS)..."
+  echo "Waiting for join configuration in SSM ($ATTEMPTS/$MAX_ATTEMPTS)..."
   sleep $SLEEP_SECONDS
 done
 
-if [ -z "$JOIN_CMD" ] || [[ "$JOIN_CMD" != kubeadm* ]]; then
-  echo "Failed to retrieve join command from SSM parameter: $PARAM_NAME" >&2
+if [ -z "$JOIN_CONFIG" ] || [[ "$JOIN_CONFIG" != *"apiVersion"* ]]; then
+  echo "Failed to retrieve join configuration from SSM parameter: $PARAM_NAME" >&2
   exit 1
 fi
+
+# Save join configuration to file
+echo "$JOIN_CONFIG" > /tmp/kubeadm-join-config.yaml
+echo "kubeadm-join-config.yaml created:"
+cat /tmp/kubeadm-join-config.yaml
 
 # Ensure kubelet is enabled
 sudo systemctl enable kubelet
 
 # 8) Retry kubeadm join for up to ~5 minutes (30 x 10s)
-echo "Joining Kubernetes cluster..."
+echo "Joining Kubernetes cluster with config file..."
 ATTEMPTS=0
 MAX_ATTEMPTS=30
 SLEEP_SECONDS=10
 while [ $ATTEMPTS -lt $MAX_ATTEMPTS ]; do
-  if sudo bash -lc "$JOIN_CMD"; then
+  if sudo kubeadm join --config /tmp/kubeadm-join-config.yaml; then
     echo "kubeadm join succeeded"
     break
   fi
