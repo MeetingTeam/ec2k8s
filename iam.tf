@@ -210,6 +210,7 @@ resource "aws_iam_policy" "k8s_master_ssm_write" {
         Action   = ["ssm:PutParameter", "ssm:GetParameter"],
         Resource = "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_join_param_name}"
       }
+      
     ]
   })
 }
@@ -224,4 +225,44 @@ resource "aws_iam_instance_profile" "k8s_master_profile" {
   role = aws_iam_role.k8s_master_role.name
 }
 
+# Attach AWS managed policies to worker role
+resource "aws_iam_role_policy_attachment" "k8s_worker_ec2_full" {
+  role       = aws_iam_role.k8s_worker_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+}
 
+resource "aws_iam_role_policy_attachment" "k8s_worker_elb_full" {
+  role       = aws_iam_role.k8s_worker_role.name
+  policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "k8s_worker_iam_readonly" {
+  role       = aws_iam_role.k8s_worker_role.name
+  policy_arn = "arn:aws:iam::aws:policy/IAMReadOnlyAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "k8s_worker_ebs_csi_managed" {
+  role       = aws_iam_role.k8s_worker_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
+
+# Attach AWS managed policies to master role
+resource "aws_iam_role_policy_attachment" "k8s_master_ec2_full" {
+  role       = aws_iam_role.k8s_master_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "k8s_master_elb_full" {
+  role       = aws_iam_role.k8s_master_role.name
+  policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "k8s_master_iam_readonly" {
+  role       = aws_iam_role.k8s_master_role.name
+  policy_arn = "arn:aws:iam::aws:policy/IAMReadOnlyAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "k8s_master_ebs_csi_managed" {
+  role       = aws_iam_role.k8s_master_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
