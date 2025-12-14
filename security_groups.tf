@@ -92,6 +92,8 @@ resource "aws_security_group" "k8s_master" {
 
   tags = {
     Name = "k8s_master_sg"
+    "kubernetes.io/cluster/ec2k8s" = "owned"
+
   }
 }
 
@@ -155,6 +157,7 @@ resource "aws_security_group" "k8s_worker" {
 
   tags = {
     Name = "k8s_worker_sg"
+    "kubernetes.io/cluster/ec2k8s" = "owned"
   }
 }
 

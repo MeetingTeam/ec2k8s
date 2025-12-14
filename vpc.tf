@@ -6,6 +6,8 @@ resource "aws_vpc" "k8s_vpc" {
 
   tags = {
     Name = "k8s-vpc"
+    "kubernetes.io/cluster/ec2k8s" = "owned"
+
   }
 }
 
@@ -27,6 +29,8 @@ resource "aws_subnet" "k8s_public_subnet" {
 
   tags = {
     Name = "k8s-public-subnet"
+    "kubernetes.io/cluster/ec2k8s" = "owned"
+    "kubernetes.io/role/elb"   = "1"
   }
 }
 
@@ -85,6 +89,8 @@ resource "aws_subnet" "k8s_private_subnet" {
 
   tags = {
     Name = "k8s-private-subnet"
+    "kubernetes.io/cluster/ec2k8s" = "owned"
+    "kubernetes.io/role/internal-elb"             = "1"
   }
 }
 

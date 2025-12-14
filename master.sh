@@ -124,6 +124,7 @@ echo "Installing of Kubernetes components is successful"
 
 # Enable kubelet service (will start after kubeadm init)
 sudo systemctl enable kubelet
+sudo hostnamectl set-hostname $(curl -s http://169.254.169.254/latest/meta-data/local-hostname)
 
 # ---------- Master Node (Control-plane) Initialization
 echo "-------------Initializing Kubernetes Control Plane-------------"
@@ -141,11 +142,46 @@ if ! sudo kubeadm config images pull; then
     exit 1
 fi
 
-# Initialize kubeadm with retry logic
-echo "Running kubeadm init..."
+# Create kubeadm configuration file with cloud provider support
+echo "Creating kubeadm-config.yaml..."
+cat <<EOF > /tmp/kubeadm-config.yaml
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+nodeRegistration:
+  name: $(curl -s http://169.254.169.254/latest/meta-data/local-hostname)
+  kubeletExtraArgs:
+    cloud-provider: external
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+clusterName: ec2k8s
+kubernetesVersion: v1.31.0
+networking:
+  podSubnet: 10.32.0.0/16
+  serviceSubnet: 10.96.0.0/12
+apiServer:
+  certSANs:
+  - 127.0.0.1
+  - "$PUBLIC_IP"
+  - "$USER_IP"
+  extraArgs:
+    bind-address: "0.0.0.0"
+    cloud-provider: external
+controllerManager:
+  extraArgs:
+    bind-address: "0.0.0.0"
+    cloud-provider: external
+EOF
+
+
+echo "kubeadm-config.yaml created with cloud provider support"
+cat /tmp/kubeadm-config.yaml
+
+# Initialize kubeadm with retry logic using config file
+echo "Running kubeadm init with config file..."
 KUBEADM_ATTEMPTS=0
 MAX_KUBEADM_ATTEMPTS=2
-until sudo kubeadm init --pod-network-cidr=10.32.0.0/16 --apiserver-advertise-address="$USER_IP" --apiserver-cert-extra-sans=$PUBLIC_IP ; do
+until sudo kubeadm init --config /tmp/kubeadm-config.yaml ; do
   KUBEADM_ATTEMPTS=$((KUBEADM_ATTEMPTS + 1))
   if [ $KUBEADM_ATTEMPTS -ge $MAX_KUBEADM_ATTEMPTS ]; then
     echo "ERROR: kubeadm init failed after $MAX_KUBEADM_ATTEMPTS attempts"
@@ -217,19 +253,53 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 helm version || true
 su - ubuntu -c "helm version" || true
 
-# ---------- Creating join command and publishing to SSM Parameter Store
-echo "-------------Creating join command and publishing to SSM Parameter Store-------------"
-JOIN_CMD=$(sudo kubeadm token create --print-join-command)
+# ---------- Creating join config file and publishing to SSM Parameter Store
+echo "-------------Creating kubeadm join configuration with cloud provider support-------------"
 
-# Save locally for troubleshooting and Ansible fetch
+# Generate join command to extract components
+JOIN_CMD=$(sudo kubeadm token create --print-join-command)
+echo "Join command: $JOIN_CMD"
+
+# Extract token, API server endpoint, and CA cert hash from join command
+TOKEN=$(echo "$JOIN_CMD" | grep -oP '(?<=--token )[^ ]+')
+API_SERVER=$(echo "$JOIN_CMD" | grep -oP '(?<=kubeadm join )[^ ]+')
+CA_CERT_HASH=$(echo "$JOIN_CMD" | grep -oP '(?<=--discovery-token-ca-cert-hash )[^ ]+')
+
+echo "Token: $TOKEN"
+echo "API Server: $API_SERVER"
+echo "CA Cert Hash: $CA_CERT_HASH"
+
+# Create kubeadm join configuration file with cloud provider support
+cat <<EOF > /home/ubuntu/kubeadm-join-config.yaml
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: JoinConfiguration
+discovery:
+  bootstrapToken:
+    token: $TOKEN
+    apiServerEndpoint: $API_SERVER
+    caCertHashes:
+    - $CA_CERT_HASH
+nodeRegistration:
+  kubeletExtraArgs:
+    cloud-provider: external
+EOF
+
+echo "kubeadm-join-config.yaml created with cloud provider support:"
+cat /home/ubuntu/kubeadm-join-config.yaml
+
+# Set proper permissions
+sudo chmod 644 /home/ubuntu/kubeadm-join-config.yaml
+sudo chown ubuntu:ubuntu /home/ubuntu/kubeadm-join-config.yaml
+
+# Save legacy join command for backward compatibility
 echo "$JOIN_CMD" | sudo tee /home/ubuntu/join-command.sh >/dev/null
 sudo chmod 644 /home/ubuntu/join-command.sh
 sudo chown ubuntu:ubuntu /home/ubuntu/join-command.sh
 
-# Publish to SSM Parameter Store so ASG workers can retrieve it
+# Publish join config to SSM Parameter Store
 REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
-aws ssm put-parameter --name "$SSM_PARAM_NAME" --value "$JOIN_CMD" --type "String" --overwrite --region "$REGION"
+JOIN_CONFIG=$(cat /home/ubuntu/kubeadm-join-config.yaml)
+aws ssm put-parameter --name "$SSM_PARAM_NAME" --value "$JOIN_CONFIG" --type "String" --overwrite --region "$REGION"
 
-echo "Join command saved to SSM Parameter Store: $SSM_PARAM_NAME"
-echo "Join command: $JOIN_CMD"
+echo "Join configuration saved to SSM Parameter Store: $SSM_PARAM_NAME"
 echo "--------- Master node initialization complete ---------"

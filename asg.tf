@@ -29,6 +29,8 @@ resource "aws_launch_template" "k8s_worker_lt" {
     resource_type = "instance"
     tags = {
       Name = "k8s-worker"
+      "kubernetes.io/cluster/ec2k8s" = "owned"
+
     }
   }
 }
@@ -69,8 +71,10 @@ resource "aws_autoscaling_group" "k8s_workers" {
   }
 
   tag {
-    key                 = "Name"
-    value               = "k8s-worker"
+    key                 = "kubernetes.io/cluster/ec2k8s"
+    value               = "owned"
+    
     propagate_at_launch = true
+  
   }
 }

@@ -17,6 +17,8 @@ resource "aws_instance" "k8s_master" {
 
   tags = {
     Name = "k8s-master"
+    "kubernetes.io/cluster/ec2k8s" = "owned"
+
   }
 
   connection {
