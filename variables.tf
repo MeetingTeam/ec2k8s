@@ -59,7 +59,7 @@ variable "worker_asg_instance_types" {
 variable "worker_asg_on_demand_base_capacity" {
   description = "Base capacity served by On-Demand before using Spot"
   type        = number
-  default     = 0
+  default     = 1
 }
 
 variable "worker_asg_on_demand_percentage_above_base_capacity" {
