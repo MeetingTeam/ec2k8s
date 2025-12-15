@@ -33,15 +33,15 @@ resource "aws_security_group" "k8s_master" {
   ingress {
     description      = "Weavenet TCP"
     from_port        = 6783
-    to_port          = 6783
+    to_port          = 6784
     protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
   }
 
   ingress {
-    description      = "Weavenet TCP"
-    from_port        = 6784
+    description      = "Weavenet UDP"
+    from_port        = 6783
     to_port          = 6784
     protocol         = "udp"
     cidr_blocks      = ["0.0.0.0/0"]
@@ -139,7 +139,7 @@ resource "aws_security_group" "k8s_worker" {
   ingress {
     description      = "Weavenet TCP"
     from_port        = 6783
-    to_port          = 6783
+    to_port          = 6784
     protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
@@ -147,7 +147,7 @@ resource "aws_security_group" "k8s_worker" {
 
   ingress {
     description      = "Weavenet TCP"
-    from_port        = 6784
+    from_port        = 6783
     to_port          = 6784
     protocol         = "udp"
     cidr_blocks      = ["0.0.0.0/0"]
