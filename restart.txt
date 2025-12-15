@@ -4,9 +4,11 @@ Giảm desired_capacity về 0 (và min_size = 0) để “tắt” toàn bộ w
 Tăng lại desired_capacity khi cần dùng.
 Cách thực hiện (khuyến nghị dùng Terraform để không lệch trạng thái)
 Tắt worker:
-terraform apply -var="worker_asg_min_size=0" -var="worker_asg_desired_capacity=0"
+terraform apply -var="worker_asg_min_size=0" -var="worker_asg_desired_capacity=0" -auto-approve
 Bật lại worker:
 terraform apply -var="worker_asg_min_size=<N>" -var="worker_asg_desired_capacity=<N>"
+terraform apply -var="worker_asg_min_size=1" -var="worker_asg_desired_capacity=1" -auto-approve
+
 Token kubeadm join có hạn (mặc định 24h). Nếu bạn scale lên sau khi token hết hạn, node mới sẽ không join được.
 Cách xử lý: trên master tạo token mới và cập nhật vào SSM:
 kubeadm token create --print-join-command | tee /home/ubuntu/join-command.sh
@@ -16,18 +18,4 @@ Truy cập/SSH:
 Worker ở private subnet: bạn SSH qua master (bastion). Nếu master đang stop thì bạn không SSH được vào worker.
 
 
-Nếu tham số chưa tồn tại hoặc token hết hạn
-Tạo token mới và cập nhật vào SSM:
-kubeadm token create --print-join-command | tee /home/ubuntu/join-command.sh
-aws ssm put-parameter --name "/k8s/join-command" --value "$(cat /home/ubuntu/join-command.sh)" --type "String" --overwrite --region "$REGION"
-4) Cho worker chạy lại quy trình join
-Các worker hiện có có thể đã fail join từ trước. Cách nhanh để thay thế bằng phiên bản mới (có retry join 5 phút trong user_data):
-Dùng Instance Refresh (không downtime):
-aws autoscaling start-instance-refresh --auto-scaling-group-name k8s-workers-asg --strategy Rolling --preferences MinHealthyPercentage=100,InstanceWarmup=120
-Hoặc scale về 0 rồi scale lên lại bằng Terraform:
-terraform apply -var="worker_asg_desired_capacity=0" -auto-approve
-terraform apply -var="worker_asg_desired_capacity=<N>" -auto-approve
-5) Xác nhận
-Trên master:
-kubectl get nodes -o wide
-→ thấy nodes worker ở trạng thái Ready.
+
