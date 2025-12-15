@@ -229,7 +229,18 @@ echo "API server is ready!"
 echo "-------------Deploying Weave Net Pod Networking-------------"
 DEPLOY_ATTEMPTS=0
 MAX_DEPLOY_ATTEMPTS=5
-until kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml; do
+
+# Download Weave manifest and configure IPALLOC_RANGE to match kubeadm podSubnet
+curl -fsSL https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml -o /tmp/weave-daemonset-k8s.yaml
+
+# Set IPALLOC_RANGE environment variable to match podSubnet (10.32.0.0/16)
+# This prevents IP allocation conflicts between master and worker nodes
+sed -i '/name: IPALLOC_RANGE/,/value:/ s|value: .*|value: 10.32.0.0/16|' /tmp/weave-daemonset-k8s.yaml || \
+  sed -i '/containers:/,/env:/ {/env:/a\            - name: IPALLOC_RANGE\n              value: 10.32.0.0/16' /tmp/weave-daemonset-k8s.yaml
+
+echo "Weave configuration updated with IPALLOC_RANGE=10.32.0.0/16"
+
+until kubectl apply -f /tmp/weave-daemonset-k8s.yaml; do
   DEPLOY_ATTEMPTS=$((DEPLOY_ATTEMPTS + 1))
   if [ $DEPLOY_ATTEMPTS -ge $MAX_DEPLOY_ATTEMPTS ]; then
     echo "Failed to deploy Weave network after $MAX_DEPLOY_ATTEMPTS attempts"
@@ -238,7 +249,7 @@ until kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.
   echo "Retrying Weave deployment... (attempt $DEPLOY_ATTEMPTS/$MAX_DEPLOY_ATTEMPTS)"
   sleep 15
 done
-echo "Weave network deployed successfully!"
+echo "Weave network deployed successfully with IPALLOC_RANGE=10.32.0.0/16!"
 
 
 # ---------- Verify cluster status
