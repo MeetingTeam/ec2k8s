@@ -251,6 +251,77 @@ until kubectl apply -f /tmp/weave-daemonset-k8s.yaml; do
 done
 echo "Weave network deployed successfully with IPALLOC_RANGE=10.32.0.0/16!"
 
+# ---------- Wait for Weave Net to be fully ready
+echo "-------------Waiting for Weave Net to be ready-------------"
+kubectl wait --for=condition=ready pod -l name=weave-net -n kube-system --timeout=300s
+
+# Wait for CoreDNS to be ready
+echo "-------------Waiting for CoreDNS to be ready-------------"
+kubectl wait --for=condition=ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s
+
+# ---------- Deploying AWS Cloud Provider
+echo "-------------Deploying AWS Cloud Provider-------------"
+CLOUD_PROVIDER_DIR="/tmp/cloud-provider-aws"
+
+# Clean up previous clone if exists
+if [ -d "$CLOUD_PROVIDER_DIR" ]; then
+    rm -rf "$CLOUD_PROVIDER_DIR"
+fi
+
+# Clone with error handling
+if ! git clone https://github.com/kubernetes/cloud-provider-aws.git "$CLOUD_PROVIDER_DIR"; then
+    echo "ERROR: Failed to clone cloud-provider-aws repository"
+    exit 1
+fi
+
+cd "$CLOUD_PROVIDER_DIR/examples/existing-cluster/base"
+
+# Apply with retry logic
+CLOUD_PROVIDER_ATTEMPTS=0
+MAX_CLOUD_PROVIDER_ATTEMPTS=3
+until kubectl create -k .; do
+    CLOUD_PROVIDER_ATTEMPTS=$((CLOUD_PROVIDER_ATTEMPTS + 1))
+    if [ $CLOUD_PROVIDER_ATTEMPTS -ge $MAX_CLOUD_PROVIDER_ATTEMPTS ]; then
+        echo "ERROR: Failed to deploy AWS Cloud Provider after $MAX_CLOUD_PROVIDER_ATTEMPTS attempts"
+        exit 1
+    fi
+    echo "Retrying AWS Cloud Provider deployment... (attempt $CLOUD_PROVIDER_ATTEMPTS/$MAX_CLOUD_PROVIDER_ATTEMPTS)"
+    sleep 10
+done
+
+# Wait for cloud controller manager to be ready
+echo "-------------Waiting for AWS Cloud Controller Manager to be ready-------------"
+kubectl wait --for=condition=ready pod -l k8s-app=aws-cloud-controller-manager -n kube-system --timeout=300s
+
+echo "AWS Cloud Provider deployed successfully!"
+kubectl get pods -n kube-system -l k8s-app=aws-cloud-controller-manager
+
+# Return to home directory
+cd /home/ubuntu
+
+# ---------- CRITICAL: Verify cluster is ready for storage drivers
+echo "-------------Pre-flight checks for storage drivers-------------"
+
+# 1. Check all nodes have providerID
+echo "Checking providerID on all nodes..."
+NODE_COUNT=$(kubectl get nodes --no-headers | wc -l)
+PROVIDER_ID_COUNT=$(kubectl get nodes -o jsonpath='{.items[*].spec.providerID}' | tr ' ' '\n' | grep -c "aws://")
+
+if [ "$NODE_COUNT" != "$PROVIDER_ID_COUNT" ]; then
+    echo "WARNING: Not all nodes have providerID set"
+    echo "Nodes: $NODE_COUNT, Nodes with providerID: $PROVIDER_ID_COUNT"
+    kubectl get nodes -o custom-columns=NAME:.metadata.name,PROVIDER-ID:.spec.providerID
+fi
+
+# 2. Test DNS resolution
+echo "Testing DNS resolution..."
+kubectl run -it --rm dns-test --image=busybox:1.28 --restart=Never -- nslookup kubernetes.default || echo "DNS test completed"
+
+# 3. Verify AWS Cloud Controller Manager logs
+echo "Checking Cloud Controller Manager logs..."
+kubectl logs -n kube-system -l k8s-app=aws-cloud-controller-manager --tail=20 || true
+
+echo "Pre-flight checks completed!"
 
 # ---------- Verify cluster status
 echo "-------------Verifying cluster status-------------"
@@ -263,6 +334,7 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 # Verify helm for both root and ubuntu user environments
 helm version || true
 su - ubuntu -c "helm version" || true
+
 
 # ---------- Creating join config file and publishing to SSM Parameter Store
 echo "-------------Creating kubeadm join configuration with cloud provider support-------------"
