@@ -1,0 +1,81 @@
+helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+helm repo update
+helm install ebs-csi aws-ebs-csi-driver/aws-ebs-csi-driver \
+  --namespace kube-system \
+  --set controller.serviceAccount.create=true \
+  --set controller.serviceAccount.name=ebs-csi-controller-sa
+#######
+---
+# StorageClass for EBS CSI Driver with gp3 volumes
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-sc
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+  # fsType: ext4
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+---
+# StorageClass for EBS CSI Driver with gp2 volumes (legacy support)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp2
+provisioner: ebs.csi.aws.com
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+parameters:
+  type: gp2
+  fsType: ext4
+
+#####
+git clone https://github.com/MeetingTeam/k8s-repo
+cd k8s-repo/opensource/
+kubectl create ns vault
+helm install vault vault -f vault/values.custom.yaml -n vault
+Add credentials vào master vm
+cd /home/ubuntu/
+kubectl cp . vault/vault-0:/home/vault
+
+kubectl exec -it vault-0 -n vault -- sh
+
+
+vault operator init
+vault operator unseal
+cd /home/vault/vault/
+chmod +x vault-install.sh
+./vault-install.sh
+exit
+cd /home/ubuntu/k8s-repo/opensource/
+helm install rabbitmq rabbitmq -f rabbitmq/values.custom.yaml
+helm install mongodb mongodb
+helm install mysql mysql
+kubectl exec -it mysql-0 -- sh
+mysql -u root -p
+enter password “kobiet.123”
+CREATE DATABASE teamdb;
+exit
+exit
+kubectl create ns otel
+helm install otel-collector otel-collector -n otel
+helm install ingress-nginx ingress-nginx -f ./ingress-nginx/values.custom.yaml
+cd /home/ubuntu/k8s-repo/application/
+helm install chat-service chat-service -f chat-service/values.dev.yaml
+helm install frontend-service frontend-service -f frontend-service/values.dev.yaml
+helm install meeting-service meeting-service -f meeting-service/values.dev.yaml
+helm install team-service team-service -f team-service/values.dev.yaml
+helm install user-service user-service -f user-service/values.dev.yaml
+helm install websocket-service websocket-service -f websocket-service/values.dev.yaml
+
+
+
+
+
+
