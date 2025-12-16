@@ -15,7 +15,7 @@ resource "aws_launch_template" "k8s_worker_lt" {
     device_name = "/dev/sda1"
     ebs {
       volume_type           = "gp2"
-      volume_size           = 30
+      volume_size           = 20
       delete_on_termination = true
       encrypted             = false
     }

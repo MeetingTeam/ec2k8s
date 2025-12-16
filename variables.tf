@@ -26,7 +26,7 @@ variable "worker_instance_count" {
 # Autoscaling configuration for worker nodes
 variable "worker_asg_min_size" {
   type    = number
-  default = 1
+  default = 0
 }
 
 variable "worker_asg_max_size" {
@@ -59,7 +59,7 @@ variable "worker_asg_instance_types" {
 variable "worker_asg_on_demand_base_capacity" {
   description = "Base capacity served by On-Demand before using Spot"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "worker_asg_on_demand_percentage_above_base_capacity" {

@@ -75,7 +75,19 @@ helm install user-service user-service -f user-service/values.dev.yaml
 helm install websocket-service websocket-service -f websocket-service/values.dev.yaml
 
 
+Nếu bạn muốn tạm dừng worker nhưng không muốn ASG can thiệp:
+Detach instance khỏi ASG (không giảm desired capacity)
+Sau đó mới Stop instance
 
+Khi start thì start master sau đó mới tới woker
+Nhưng nếu:
+
+Worker bị recreate
+
+Disk mất
+→ cần join lại:
+
+kubeadm token create --print-join-command
 
 
 
