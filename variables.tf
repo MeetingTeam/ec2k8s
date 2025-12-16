@@ -36,7 +36,7 @@ variable "worker_asg_max_size" {
 
 variable "worker_asg_desired_capacity" {
   type    = number
-  default = 1
+  default = 2
 }
 
 # SSM Parameter Store name to publish the kubeadm join command
