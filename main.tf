@@ -37,9 +37,7 @@ resource "aws_instance" "k8s_master" {
       "sudo bash /home/ubuntu/master.sh k8s-master ${var.ssm_join_param_name}"
     ]
   }
-  provisioner "local-exec" {
-    command = "bash generate_inventory.sh ${self.public_ip} && ansible-playbook -i inventory.ini playbook.yml"
-  }
+
 }
 
 

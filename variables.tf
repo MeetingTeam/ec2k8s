@@ -1,12 +1,12 @@
 variable "region" {
-  default = "ap-southeast-7"
+  default = "ap-southeast-1"
 }
 
 variable "ami" {
   type = map(string)
   default = {
-    master = "ami-02d686bd4635272ec"
-    worker = "ami-02d686bd4635272ec"
+    master = "ami-0827b3068f1548bf6"
+    worker = "ami-0827b3068f1548bf6"
   }
 }
 
