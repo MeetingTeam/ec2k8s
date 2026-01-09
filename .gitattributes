@@ -1,0 +1,10 @@
+# Shell scripts must use LF line endings for Linux compatibility
+*.sh text eol=lf
+
+# Terraform files can use native line endings
+*.tf text
+*.tfvars text
+
+# Binary files
+*.pub binary
+k8s binary
